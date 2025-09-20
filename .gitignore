@@ -1,0 +1,19 @@
+# Qt / C++
+*.o
+*.obj
+*.so
+*.dll
+*.dylib
+*.exe
+*.app
+*.user
+*.qmake.stash
+*.qmake.cache
+Makefile*
+build*/
+cmake-build-*/
+*.pro.user
+
+# OS-specific
+.DS_Store
+Thumbs.db
