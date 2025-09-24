@@ -4,6 +4,10 @@
 #include <QMainWindow>
 #include "tenant.h"
 #include "ui_mainwindow.h"
+//SQLite implementation.
+#include <QtSql>
+#include <QDebug>
+#include <QFileInfo>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }

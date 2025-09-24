@@ -192,6 +192,14 @@ MainWindow::MainWindow(QWidget *parent)
         }
     });
 
+    //--------------------------------------------Database Implementation----------------------
+    QSqlDatabase mydb = QSqlDatabase::addDatabase("QSQLITE");
+    mydb.setDatabaseName("C:/Users/ferna/OneDrive/Desktop/Browser/myBrowser/database.db");
+    if(mydb.open()){
+        qDebug() << "Database is OPEN!";
+    }else{
+        qDebug() << "Failed to open Database";
+    }
 
 }
 
@@ -199,4 +207,3 @@ MainWindow::~MainWindow()
 {
     delete ui;
 }
-

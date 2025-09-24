@@ -1,4 +1,4 @@
-# Qt / C++
+# Build artifacts
 *.o
 *.obj
 *.so
@@ -10,9 +10,17 @@
 *.qmake.stash
 *.qmake.cache
 Makefile*
+debug*/
+release*/
 build*/
-cmake-build-*/
+
+# Qt Creator files
 *.pro.user
+*.pro.user.*
+*.autosave
+
+# SQLite database file (optional if you want to ignore it)
+tenants.db
 
 # OS-specific
 .DS_Store
