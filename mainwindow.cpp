@@ -1,4 +1,4 @@
-//TODO:
+//TODO: - Setup a seed for the very 1st month of the database. (2001/10/18....idk).
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "tenant.h"
@@ -29,13 +29,22 @@ int MainWindow::hallway_electric_metric(){
 }
 
 //Fetch input information from the Qt Table Widget (tenants 1 - 10 info.) so that we can store it into program memory and later process it.
-void MainWindow::fetch_tenants_table_info(){
+void MainWindow::store_tenants_table_info(){
     for(int row = 0; row < 10; ++row){
         if((MainWindow::ui->ui_room_table->item(row, 0)->checkState() == Qt::Checked) && MainWindow::validate_row(row)){
-            int cold_water = MainWindow::ui->ui_room_table->item(row, 1)->text().toInt();
-            int hot_water = MainWindow::ui->ui_room_table->item(row, 2)->text().toInt();
-            int electric = MainWindow::ui->ui_room_table->item(row, 3)->text().toInt();
-            MainWindow::tenants.push_back(Tenant(row+1, cold_water, hot_water, electric));
+            int last_month_water_cold_metric = MainWindow::getLastMonthTenantMetric(row+1,"water_cold_metric");
+            int last_month_water_hot_metric = MainWindow::getLastMonthTenantMetric(row+1,"water_hot_metric");
+            int last_month_electric_metric = MainWindow::getLastMonthTenantMetric(row+1,"electric_metric");
+
+            int curr_water_cold_metric = MainWindow::ui->ui_room_table->item(row, 1)->text().toInt();
+            int curr_water_hot_metric = MainWindow::ui->ui_room_table->item(row, 2)->text().toInt();
+            int curr_electric_metric = MainWindow::ui->ui_room_table->item(row, 3)->text().toInt();
+            MainWindow::archive_tenants.push_back(Tenant(row+1, curr_water_cold_metric, curr_water_hot_metric, curr_electric_metric));
+
+            int used_cold_water = curr_water_cold_metric - last_month_water_cold_metric;
+            int used_hot_water = curr_water_hot_metric - last_month_water_hot_metric;
+            int used_electric = curr_electric_metric - last_month_electric_metric;
+            MainWindow::tenants.push_back(Tenant(row+1, used_cold_water, used_hot_water, used_electric));
         }
     }
 }
@@ -47,6 +56,145 @@ float MainWindow::tenants_shared_costs(){
     float gas_shared_cost = MainWindow::floor_gas_metric * MainWindow::gas_rate; //Rooms do not have any gas pipelines, hence no "hallway_gas_metric" (tenants only have access to gas in the kitches, which is a "floor cost")
     return water_shared_cost + electric_shared_cost + gas_shared_cost;
 }
+
+
+//Create a predefined sql table, so that one does not have to be configure/shipped on new devices.
+//The create_month_table and create_tenant_table ensures the existence of tables needed for the application and its database to function properly.
+void MainWindow::create_month_table(){
+    QSqlQuery query;
+    query.exec(
+        "CREATE TABLE IF NOT EXISTS months ("
+        "month TEXT PRIMARY KEY,"
+        "water_rate REAL,"
+        "gas_rate REAL,"
+        "electric_rate REAL,"
+        "floor_water_metric REAL,"
+        "floor_gas_metric REAL,"
+        "floor_electric_metric REAL,"
+        "icg INTEGER"
+        ")");
+}
+void MainWindow::create_tenant_table(){
+    QSqlQuery query;
+    query.exec(
+        "CREATE TABLE IF NOT EXISTS tenants ("
+        "month_id TEXT,"
+        "tenant_id INTEGER,"
+        "water_cold_metric REAL,"
+        "water_hot_metric REAL,"
+        "electric_metric REAL,"
+        "FOREIGN KEY(month_id) REFERENCES months(month)"
+        ")");
+}
+//Save all the monthly information (rates & metrics) to the database
+void MainWindow::archive_month(){
+    QSqlQuery query;
+    query.prepare(
+        "INSERT INTO months (month, water_rate, gas_rate, electric_rate, "
+        "floor_water_metric, floor_gas_metric, floor_electric_metric, icg) "
+        "VALUES (:month, :water_r, :gas_r, :electric_r, :water_metric, :gas_metric, :electric_metric, :icg)");
+    // Get the selected date from widget
+    QDate selectedDate = ui->ui_dateEdit->date();
+    // Assign program variables to the query(insert)
+    QString monthName= selectedDate.toString("yyyy-MM-dd");
+    float waterRate = ui->ui_water_rate->text().toFloat();
+    float gasRate = ui->ui_gas_rate->text().toFloat();
+    float electricRate = ui->ui_electric_rate->text().toFloat();
+    float floorWater= ui->ui_floor_water_metric->text().toFloat();
+    float floorGas = ui->ui_floor_gas_metric->text().toFloat();
+    float floorElectric = ui->ui_floor_electric_metric->text().toFloat();
+    int icg = ui->ui_icg->text().toInt();
+    query.bindValue(":month", monthName);
+    query.bindValue(":water_r", waterRate);
+    query.bindValue(":gas_r", gasRate);
+    query.bindValue(":electric_r", electricRate);
+    query.bindValue(":water_metric", floorWater);
+    query.bindValue(":gas_metric", floorGas);
+    query.bindValue(":electric_metric", floorElectric);
+    query.bindValue(":icg", icg);
+
+    if (!query.exec()) {
+        qDebug() << "Failed to archive month, Error: " << query.lastError().text();
+    } else {
+        qDebug() << "Month archived successfully:" << monthName;
+    }
+}
+//Save all the monthly tenant info (metrics) to the database's tenants table.
+void MainWindow::archive_tenant(int id, int water_cold_metric, int water_hot_metric, int electric_metric){
+    QSqlQuery query;
+    query.prepare(
+        "INSERT INTO tenants (month_id, tenant_id, water_cold_metric, water_hot_metric, electric_metric) "
+        "VALUES (:month_id, :tenant_id, :water_cold, :water_hot, :electric)"
+        );
+
+    // Get tenant info from UI
+    // Get the selected date from widget
+    QDate selectedDate = ui->ui_dateEdit->date();
+    // Assign program variables to the query(insert)
+    QString monthId= selectedDate.toString("yyyy-MM-dd");
+    int tenantId = id;
+    int waterCold = water_cold_metric;
+    int waterHot = water_hot_metric;
+    int electric = electric_metric;
+
+    // Bind values to the query
+    query.bindValue(":month_id", monthId);
+    query.bindValue(":tenant_id", tenantId);
+    query.bindValue(":water_cold", waterCold);
+    query.bindValue(":water_hot", waterHot);
+    query.bindValue(":electric", electric);
+
+    // Execute the query and check for errors
+    if (!query.exec()) {
+        qDebug() << "Failed to archive tenant, Error: " << query.lastError().text();
+    } else {
+        qDebug() << "Tenant archived successfully: ID=" << tenantId << ", Month=" << monthId;
+    }
+}
+
+//Fetch last month's water/gas/electirc metric from the database.
+float MainWindow::getLastMonthMetric(const QString &metricType) {
+    QString queryStr = QString(
+                           "SELECT floor_%1_metric FROM months ORDER BY month DESC LIMIT 1"
+                           ).arg(metricType);
+
+    QSqlQuery query;
+    if (!query.exec(queryStr)) {
+        qDebug() << "Query failed:" << query.lastError().text();
+        return -1.0f;
+    }
+
+    if (query.next()) {
+        return query.value(0).toFloat(); // only 1 column in SELECT
+    }
+
+    qDebug() << "No months found in database!";
+    return -1.0f;
+}
+
+int MainWindow::getLastMonthTenantMetric(int tenantId, const QString &metricType) {
+    QSqlQuery query;
+    query.prepare(
+        "SELECT " + metricType + " FROM tenants "
+                                 "WHERE tenant_id = :tenant_id AND " + metricType + " IS NOT NULL "
+                       "ORDER BY month_id DESC LIMIT 1"
+        );
+
+    query.bindValue(":tenant_id", tenantId);
+
+    if (!query.exec() || !query.next()) {
+        return 0; // Return 0 if no previous data
+    }
+
+    return query.value(0).toInt();
+}
+
+
+
+
+
+
+
 
 
 
@@ -67,10 +215,12 @@ MainWindow::MainWindow(QWidget *parent)
         checkItem->setCheckState(Qt::Unchecked); // default unchecked
         ui->ui_room_table->setItem(row, 0, checkItem);
     }
-    //On "calculate" button click -> fetch room/tenant information from the QtTableWidget ("ui_room_table") and sotre it in program memory.
+    //On "calculate" button click -> fetch room/tenant information from the QtTableWidget ("ui_room_table") and store it in program memory.
     connect(ui->ui_calculate, &QPushButton::clicked, this, [this](){
         MainWindow::tenants.clear();
-        MainWindow::fetch_tenants_table_info();
+        MainWindow::archive_tenants.clear();
+        MainWindow::store_tenants_table_info();
+        ui->ui_save_state_pushButton->setEnabled(1);
     });
     //-----------
 
@@ -163,9 +313,11 @@ MainWindow::MainWindow(QWidget *parent)
     //Store water metric input
     connect(ui->ui_floor_water_metric, &QLineEdit::editingFinished, this, [this]() {
         bool ok;
-        float value = ui->ui_floor_water_metric->text().toFloat(&ok);
+        float last_month_floor_water_metric = MainWindow::getLastMonthMetric("water"); //Fetch last month's floor water metric from the database.
+        float current_month_floor_water_metric = ui->ui_floor_water_metric->text().toFloat(&ok); //Fetch this month's floor water metric from the ui input.
+        float water_metric = current_month_floor_water_metric - last_month_floor_water_metric; //This value is the actual water consumption for this month.
         if (ok) {
-            MainWindow::floor_water_metric = value;
+            MainWindow::floor_water_metric = water_metric;
             qDebug() << "Water metric updated to:" << MainWindow::floor_water_metric;
         } else {
             qDebug() << "Invalid number entered!";
@@ -174,9 +326,11 @@ MainWindow::MainWindow(QWidget *parent)
     //Store electric metric input
     connect(ui->ui_floor_electric_metric, &QLineEdit::editingFinished, this, [this]() {
         bool ok;
-        float value = ui->ui_floor_electric_metric->text().toFloat(&ok);
+        float last_month_floor_electric_metric = MainWindow::getLastMonthMetric("electric"); //Fetch last month's floor electric metric from the database.
+        float current_month_floor_electric_metric = ui->ui_floor_electric_metric->text().toFloat(&ok); //Fetch this month's floor electric metric from the ui input.
+        float electric_metric = current_month_floor_electric_metric - last_month_floor_electric_metric; //This value is the actual electric consumption for this month.
         if (ok) {
-            MainWindow::floor_electric_metric = value;
+            MainWindow::floor_electric_metric = electric_metric;
         } else {
             qDebug() << "Invalid number entered!";
         }
@@ -184,26 +338,51 @@ MainWindow::MainWindow(QWidget *parent)
     //Store gas metric input
     connect(ui->ui_floor_gas_metric, &QLineEdit::editingFinished, this, [this]() {
         bool ok;
-        float value = ui->ui_floor_gas_metric->text().toFloat(&ok);
+        float last_month_floor_gas_metric = MainWindow::getLastMonthMetric("gas"); //Fetch last month's floor gas metric from the database.
+        float current_month_floor_gas_metric = ui->ui_floor_gas_metric->text().toFloat(&ok); //Fetch this month's floor gas metric from the ui input.
+        float gas_metric = current_month_floor_gas_metric - last_month_floor_gas_metric; //This value is the actual gas consumption for this month.
         if (ok) {
-            MainWindow::floor_gas_metric= value;
+            MainWindow::floor_gas_metric = gas_metric;
         } else {
             qDebug() << "Invalid number entered!";
         }
     });
 
     //--------------------------------------------Database Implementation----------------------
-    QSqlDatabase mydb = QSqlDatabase::addDatabase("QSQLITE");
-    mydb.setDatabaseName("C:/Users/ferna/OneDrive/Desktop/Browser/myBrowser/database.db");
+    //Setup relative path for the database
+    QDir projectDir(QCoreApplication::applicationDirPath());
+    projectDir.cdUp();
+    projectDir.cdUp();
+    projectDir.cdUp(); // Go up the directory path 3 levels.
+    QString projectPath = projectDir.absolutePath();
+
+    //Setup the database within the project folder.
+    mydb = QSqlDatabase::addDatabase("QSQLITE");
+    mydb.setDatabaseName(projectPath + "/database.db"); //PATH: set the relative path -to> the database.
     if(mydb.open()){
-        qDebug() << "Database is OPEN!";
+        qDebug() << "Database is OPEN!"; //Open our database.
     }else{
-        qDebug() << "Failed to open Database";
+        qDebug() << "Failed to open Database. Error: " << mydb.lastError();
     }
+    ui->ui_dateEdit->setDate(QDate::currentDate()); //Set system date as the default date displayed within the "ui_dateEdit" widget.
+    //Setup the database's tables.
+    MainWindow::create_month_table();
+    MainWindow::create_tenant_table();
+    //On "Save State" push button, archive the current month's state (rates, metrics, and tenants) into the local database.
+    ui->ui_save_state_pushButton->setDisabled(1); //Don't allow user to press Archive before the program gets to Calculate - i.e. press "Save State" before "Calculate" is NOT allowed.
+    connect(ui->ui_save_state_pushButton, &QPushButton::clicked, this, [this]() {
+        MainWindow::archive_month(); //Archive the month's water/gas/electric rates & metric.
+        //Archive (for)each tenant's information into the database. (for the current  month).
+        for (auto &curr_tenant : MainWindow::archive_tenants) {
+            MainWindow::archive_tenant(curr_tenant.id,curr_tenant.water_cold_metric,curr_tenant.water_hot_metric,curr_tenant.electric_metric);
+        }
+        ui->ui_save_state_pushButton->setDisabled(1);
+    });
 
 }
 
 MainWindow::~MainWindow()
 {
+    mydb.close(); //Close database connection when program finished.
     delete ui;
 }

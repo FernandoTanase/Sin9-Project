@@ -20,7 +20,7 @@ build*/
 *.autosave
 
 # SQLite database file (optional if you want to ignore it)
-tenants.db
+*.db
 
 # OS-specific
 .DS_Store

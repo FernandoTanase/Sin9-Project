@@ -28,5 +28,4 @@ else: unix:!android: target.path = /opt/$${TARGET}/bin
 
 DISTFILES += \
     .gitignore \
-    .gitignore \
-    database.db
+    .gitignore

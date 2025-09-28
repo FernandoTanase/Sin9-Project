@@ -29,7 +29,8 @@ public:
     int floor_electric_metric = 0;
     int floor_gas_metric = 0;
     //Keep track of tenants
-    std::vector<Tenant> tenants;
+    std::vector<Tenant> tenants;//These metrics are currently (this month) consumptions.
+    std::vector<Tenant> archive_tenants;//These metrics are absolute values
     //Getters for each of the utility types(water, gas, and electric) on the whole floor.
     float water_floor_cost(){
         return this->floor_water_metric * this->water_rate;
@@ -49,7 +50,13 @@ private:
     int hallway_water_metric();
     int hallway_electric_metric();
     float tenants_shared_costs();
-    void fetch_tenants_table_info();
-
+    void store_tenants_table_info();
+    QSqlDatabase mydb;
+    void create_month_table(); //Setup database table
+    void create_tenant_table(); //Setup db table
+    void archive_month(); //Save state to database
+    void archive_tenant(int id, int water_cold_metric, int water_hot_metric, int electric_metric);//Save this (1) tenant to the tenants db table. (this function gets called foreach tenant).
+    float getLastMonthMetric(const QString &metricType); // Fetch last month's water/gas/electric metric from the database
+    int getLastMonthTenantMetric(int tenantId, const QString &metricType);
 };
 #endif // MAINWINDOW_H

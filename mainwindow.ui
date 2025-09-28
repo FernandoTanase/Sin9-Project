@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>1312</width>
-    <height>600</height>
+    <height>892</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -208,7 +208,7 @@
       <x>0</x>
       <y>120</y>
       <width>551</width>
-      <height>371</height>
+      <height>421</height>
      </rect>
     </property>
     <property name="title">
@@ -306,7 +306,7 @@
     <widget class="QPushButton" name="ui_calculate">
      <property name="geometry">
       <rect>
-       <x>0</x>
+       <x>20</x>
        <y>330</y>
        <width>90</width>
        <height>29</height>
@@ -363,6 +363,55 @@
      </property>
      <property name="text">
       <string>400</string>
+     </property>
+    </widget>
+   </widget>
+   <widget class="QGroupBox" name="groupBox_6">
+    <property name="geometry">
+     <rect>
+      <x>0</x>
+      <y>570</y>
+      <width>551</width>
+      <height>181</height>
+     </rect>
+    </property>
+    <property name="title">
+     <string>Archive.</string>
+    </property>
+    <widget class="QDateEdit" name="ui_dateEdit">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>70</y>
+       <width>110</width>
+       <height>29</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QLabel" name="label_7">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>50</y>
+       <width>91</width>
+       <height>20</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Today's Date</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="ui_save_state_pushButton">
+     <property name="geometry">
+      <rect>
+       <x>10</x>
+       <y>130</y>
+       <width>90</width>
+       <height>29</height>
+      </rect>
+     </property>
+     <property name="text">
+      <string>Save State</string>
      </property>
     </widget>
    </widget>
