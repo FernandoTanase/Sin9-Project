@@ -192,16 +192,36 @@ int MainWindow::getLastMonthTenantMetric(int tenantId, const QString &metricType
     return query.value(0).toInt();
 }
 void MainWindow::database_setup(){
-    //Setup relative path for the database
-    QDir projectDir(QCoreApplication::applicationDirPath());
-    projectDir.cdUp();
-    projectDir.cdUp();
-    projectDir.cdUp(); // Go up the directory path 3 levels.
-    QString projectPath = projectDir.absolutePath();
+    //Setup path for the database - works both in development and deployment
+    QString databaseFilePath;
+    QString appDirPath = QCoreApplication::applicationDirPath();
+    
+    // First, try to find the database next to the executable (deployment scenario)
+    QString deploymentDbPath = appDirPath + MainWindow::database_path;
+    if (QFile::exists(deploymentDbPath)) {
+        databaseFilePath = deploymentDbPath;
+        qDebug() << "Using deployment database at:" << databaseFilePath;
+    } else {
+        // If not found, try the development path (3 levels up)
+        QDir projectDir(appDirPath);
+        projectDir.cdUp();
+        projectDir.cdUp();
+        projectDir.cdUp();
+        QString developmentDbPath = projectDir.absolutePath() + MainWindow::database_path;
+        
+        if (QFile::exists(developmentDbPath)) {
+            databaseFilePath = developmentDbPath;
+            qDebug() << "Using development database at:" << databaseFilePath;
+        } else {
+            // If neither exists, create it next to the executable
+            databaseFilePath = deploymentDbPath;
+            qDebug() << "Creating new database at:" << databaseFilePath;
+        }
+    }
 
-    //Setup the database within the project folder.
+    //Setup the database
     mydb = QSqlDatabase::addDatabase("QSQLITE");
-    mydb.setDatabaseName(projectPath + MainWindow::database_path); //PATH: set the relative path -to> the database.
+    mydb.setDatabaseName(databaseFilePath); //PATH: set the path to the database.
     if(mydb.open()){
         qDebug() << "Database " + MainWindow::database_path + " is OPEN!"; //Open program <-to-> database connection.
     }else{
