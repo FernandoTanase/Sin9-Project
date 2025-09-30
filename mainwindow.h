@@ -41,6 +41,7 @@ public:
     float electric_floor_cost (){
         return this->floor_electric_metric * electric_rate;
     }
+    QString database_path = "";
 
 
 private:
@@ -58,5 +59,6 @@ private:
     void archive_tenant(int id, int water_cold_metric, int water_hot_metric, int electric_metric);//Save this (1) tenant to the tenants db table. (this function gets called foreach tenant).
     float getLastMonthMetric(const QString &metricType); // Fetch last month's water/gas/electric metric from the database
     int getLastMonthTenantMetric(int tenantId, const QString &metricType);
+    void database_setup(); //Setup the path where the database is, and setup the program's connection to the database.
 };
 #endif // MAINWINDOW_H

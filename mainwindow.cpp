@@ -1,4 +1,7 @@
-//TODO: - Setup a seed for the very 1st month of the database. (2001/10/18....idk).
+//TODO: - Add the functionality of selecting a FLOOR 1/2. (In the very beginning of the program!; disable all functionalaity until floor # is selected).
+//      - Use different DB or different tables?
+// RESUME: line 223 & 213
+
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include "tenant.h"
@@ -188,7 +191,27 @@ int MainWindow::getLastMonthTenantMetric(int tenantId, const QString &metricType
 
     return query.value(0).toInt();
 }
+void MainWindow::database_setup(){
+    //Setup relative path for the database
+    QDir projectDir(QCoreApplication::applicationDirPath());
+    projectDir.cdUp();
+    projectDir.cdUp();
+    projectDir.cdUp(); // Go up the directory path 3 levels.
+    QString projectPath = projectDir.absolutePath();
 
+    //Setup the database within the project folder.
+    mydb = QSqlDatabase::addDatabase("QSQLITE");
+    mydb.setDatabaseName(projectPath + MainWindow::database_path); //PATH: set the relative path -to> the database.
+    if(mydb.open()){
+        qDebug() << "Database " + MainWindow::database_path + " is OPEN!"; //Open program <-to-> database connection.
+    }else{
+        qDebug() << "Failed to open Database. Error: " << mydb.lastError();
+    }
+    ui->ui_dateEdit->setDate(QDate::currentDate()); //Set system date as the default date displayed within the "ui_dateEdit" widget.
+    //Setup the database's tables.
+    MainWindow::create_month_table();
+    MainWindow::create_tenant_table();
+}
 
 
 
@@ -206,9 +229,27 @@ MainWindow::MainWindow(QWidget *parent)
     ui->ui_room_table->setSizePolicy(QSizePolicy::Maximum, QSizePolicy::Expanding);
     ui->ui_room_table->resizeColumnsToContents();
     ui->ui_room_table->resizeRowsToContents();
+    ui->ui_calculate->setDisabled(1); //Only give the user 1 option when program starts...to select the Floor.
+    ui->ui_save_state_pushButton->setDisabled(1); //Don't allow user to press Archive before the program gets to Calculate - i.e. press "Save State" before "Calculate" is NOT allowed.
 
     //--------inputs-----
-    //Add checkbox in first column
+    //Select floor 1 or 2 so that database connection can be setup. (each floor has a separate database).
+    connect(ui->ui_floor1_select, &QPushButton::clicked, this, [this](){
+        ui->ui_floor1_select->setDisabled(1);
+        ui->ui_floor2_select->setDisabled(1);
+        ui->ui_calculate->setEnabled(1);
+        MainWindow::database_path = "/database1.db";
+        MainWindow::database_setup();
+    });
+    connect(ui->ui_floor2_select, &QPushButton::clicked, this, [this](){
+        ui->ui_floor1_select->setDisabled(1);
+        ui->ui_floor2_select->setDisabled(1);
+        ui->ui_calculate->setEnabled(1);
+        MainWindow::database_path = "/database2.db";
+        MainWindow::database_setup();
+    });
+
+    //Add checkboxes in first column of all 10 tenants rows
     for (int row = 0; row < 10; ++row) {
         QTableWidgetItem *checkItem = new QTableWidgetItem();
         checkItem->setFlags(Qt::ItemIsUserCheckable | Qt::ItemIsEnabled); // must set flags
@@ -349,27 +390,8 @@ MainWindow::MainWindow(QWidget *parent)
     });
 
     //--------------------------------------------Database Implementation----------------------
-    //Setup relative path for the database
-    QDir projectDir(QCoreApplication::applicationDirPath());
-    projectDir.cdUp();
-    projectDir.cdUp();
-    projectDir.cdUp(); // Go up the directory path 3 levels.
-    QString projectPath = projectDir.absolutePath();
 
-    //Setup the database within the project folder.
-    mydb = QSqlDatabase::addDatabase("QSQLITE");
-    mydb.setDatabaseName(projectPath + "/database.db"); //PATH: set the relative path -to> the database.
-    if(mydb.open()){
-        qDebug() << "Database is OPEN!"; //Open our database.
-    }else{
-        qDebug() << "Failed to open Database. Error: " << mydb.lastError();
-    }
-    ui->ui_dateEdit->setDate(QDate::currentDate()); //Set system date as the default date displayed within the "ui_dateEdit" widget.
-    //Setup the database's tables.
-    MainWindow::create_month_table();
-    MainWindow::create_tenant_table();
     //On "Save State" push button, archive the current month's state (rates, metrics, and tenants) into the local database.
-    ui->ui_save_state_pushButton->setDisabled(1); //Don't allow user to press Archive before the program gets to Calculate - i.e. press "Save State" before "Calculate" is NOT allowed.
     connect(ui->ui_save_state_pushButton, &QPushButton::clicked, this, [this]() {
         MainWindow::archive_month(); //Archive the month's water/gas/electric rates & metric.
         //Archive (for)each tenant's information into the database. (for the current  month).
@@ -377,6 +399,7 @@ MainWindow::MainWindow(QWidget *parent)
             MainWindow::archive_tenant(curr_tenant.id,curr_tenant.water_cold_metric,curr_tenant.water_hot_metric,curr_tenant.electric_metric);
         }
         ui->ui_save_state_pushButton->setDisabled(1);
+        ui->ui_calculate->setDisabled(1);
     });
 
 }
